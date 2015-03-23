@@ -1,0 +1,68 @@
+<?php
+
+
+/**
+ * Implements hook_field_schema().
+ */
+function m8price_field_schema($field) {
+
+    return array(
+        'columns' => array(
+            // закупочная цена
+            'cost' => array(
+                'type' => 'numeric',
+                'size' => 'normal',
+                'precision' => 10,
+                'scale' => 2,
+                'unsigned' => TRUE,
+                'not null' => FALSE,
+            ),
+            // добавочная стоимость
+            'added' => array(
+                'type' => 'numeric',
+                'size' => 'normal',
+                'default' => 0,
+                'precision' => 10,
+                'scale' => 2,
+                'unsigned' => TRUE,
+                'not null' => FALSE,
+            ),
+            // скидка в процентах
+            'percent' => array(
+                'type' => 'int',
+                'size' => 'tiny',
+                'unsigned' => TRUE,
+                'not null' => FALSE,
+            ),
+            // высчитаная оригенальная цена: cost + added
+            'original' => array(
+                'type' => 'numeric',
+                'size' => 'normal',
+                'precision' => 10,
+                'scale' => 2,
+                'unsigned' => TRUE,
+                'not null' => FALSE,
+            ),
+            // высчитаный размер скидки: discount_pct * original / 100
+            'discount' => array(
+                'type' => 'numeric',
+                'size' => 'normal',
+                'default' => 0,
+                'precision' => 10,
+                'scale' => 2,
+                'unsigned' => TRUE,
+                'not null' => FALSE,
+            ),
+            // высчитаная итоговая цена: original - discount или (100 - discount_pct) * original / 100
+            'value' => array(
+                'type' => 'numeric',
+                'size' => 'normal',
+                'precision' => 10,
+                'scale' => 2,
+                'unsigned' => TRUE,
+                'not null' => FALSE,
+                'sortable' => TRUE,
+            ),
+        ),
+    );
+}

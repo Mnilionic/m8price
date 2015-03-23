@@ -1,0 +1,13 @@
+name = m8 Price
+description = Defines price field type.
+core = 7.x
+version = 7.x-2.0
+package = Mnilionic
+
+files[] = m8price.module
+files[] = m8price.install
+
+; Views Handlers
+;files[] = views/m8price_views_handler_argument_target.inc
+;files[] = views/m8price_views_handler_filter_protocol.inc
+

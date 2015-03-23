@@ -1,0 +1,26 @@
+fieldset.m8price-wrapper .field-type-m8price-item .form-item{ 
+	display: inline-block; 
+	margin-right: 2em;
+	min-width: 140px;
+}
+fieldset.m8price-wrapper .m8price-value .form-text{
+	background-color: #E9FADE;
+	color: #000000;
+}
+
+fieldset.m8price-wrapper option.over{
+	color: red;
+}
+
+fieldset.m8price-wrapper .m8price-discount-over .form-text{
+	background-color: #FFDFDF;
+	color: #000000;
+}
+
+fieldset.m8price-wrapper .m8price-profit label{
+	display: inline;
+}
+
+fieldset.m8price-wrapper .m8price-lesion{
+	color: #FF0000;
+}

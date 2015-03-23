@@ -1,0 +1,483 @@
+<?php
+
+
+
+/**
+ * Implements hook_field_info().
+ */
+function m8price_field_info() {  
+  return array(  
+    'm8price_field' => array(  
+      'label' => 'Price',  
+      'description' => 'm8price',  
+      'instance_settings' => array('prefix' => '', 'suffix' => ''),
+      'default_widget' => 'm8price_default',                        
+      'default_formatter' => 'm8price_default', 
+      'behaviors' => array( 'default value' => FIELD_BEHAVIOR_NONE), 
+    ), 
+  ); 
+} 
+
+/*
+function m8price_field_settings_form($field, $instance, $has_data) {
+
+}
+*/
+/**
+ * Implements hook_field_instance_settings_form().
+ */
+function m8price_field_instance_settings_form($field, $instance) {
+    $settings = $instance['settings'];
+
+    $form = array();
+    $form['prefix'] = array(
+        '#type' => 'textfield', '#size' => 5,
+        '#title' => 'Prefix',
+        '#default_value' => $settings['prefix'],
+    );
+    $form['suffix'] = array(
+        '#type' => 'textfield', '#size' => 5,
+        '#title' => 'Suffix',
+        '#default_value' => $settings['suffix'],
+    );
+
+    return $form;
+}
+
+
+
+
+/**
+ * Implements hook_field_widget_info().
+ */
+function m8price_field_widget_info() {
+    return array(
+        'm8price_default' => array(
+            'label' => 'Price default',
+            'field types' => array('m8price_field'),
+            'multiple values' => FIELD_BEHAVIOR_DEFAULT,
+        ),
+    );
+}
+
+/**
+ * Implements hook_field_widget_form().
+ */
+function m8price_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+    $settings = $instance['settings'];
+    $default = $instance['default_value'][0];
+
+    $element = array(
+        '#type' => 'fieldset',
+        '#title' => $instance['label'],
+        '#description' => $instance['description'],
+        '#attributes' => array('class' => array('m8price-wrapper')),
+        '#attached' => array(
+            'js' => array(drupal_get_path('module', 'm8price') . '/m8price.js'),
+        ),
+    );
+
+    $cost = isset($items[$delta])? $items[$delta]['cost'] : $default['cost'];
+    $element['cost'] = array(
+        '#title' => 'Cost value',
+        '#type' => 'textfield', '#size' => 10,
+        '#default_value' => ($cost == 0)? '': $cost,
+        '#required' => ($delta == 0)? $instance['required']: 0,
+        '#delta' => $delta,
+        '#field_prefix' => $settings['prefix'],
+        '#field_suffix' => $settings['suffix'],
+    );
+    $added = isset($items[$delta])? $items[$delta]['added'] : $default['added'];
+    if (empty($added)) $added = 0;
+    $element['added'] = array(
+        '#title' => 'Added value',
+        '#type' => 'textfield', '#size' => 10,
+        '#default_value' => $added,
+        '#delta' => $delta,
+        '#field_prefix' => '+ '. $settings['prefix'],
+        '#field_suffix' => $settings['suffix'],
+    );
+    $percent = isset($items[$delta])? $items[$delta]['percent'] : $default['percent'];
+    if (empty($percent)) $percent = 0;
+    $element['percent'] = array(
+        //'#title' => 'Percentage discount',
+        '#title' => 'Discount',
+        '#type' => 'select', '#options' => range(0, 100),
+        '#default_value' => $percent,
+        '#delta' => $delta,
+        '#field_suffix' => '%',
+    );
+    //
+    //$original = $cost + $added;
+    $original = isset($items[$delta])? $items[$delta]['original'] : $default['original'];
+    $element['original'] = array(
+        '#title' => 'Original price',
+        '#type' => 'textfield', '#size' => 10,
+        '#default_value' => $original,
+        '#delta' => $delta,
+        '#field_prefix' => '= '. $settings['prefix'],
+        '#field_suffix' => $settings['suffix'],
+        '#disabled' => TRUE,
+    );
+    //$discount = ceil($percent * $original) / 100;
+    $discount = isset($items[$delta])? $items[$delta]['discount'] : $default['discount'];
+    $element['discount'] = array(
+        '#title' => 'Discount value',
+        '#type' => 'textfield', '#size' => 10,
+        '#default_value' => $discount,
+        '#delta' => $delta,
+        '#field_prefix' => '- '. $settings['prefix'],
+        '#field_suffix' => $settings['suffix'],
+        '#disabled' => TRUE,
+    );
+    //$value = $original - $discount;
+    $value = isset($items[$delta])? $items[$delta]['value'] : $default['value'];
+    $element['value'] = array(
+        '#title' => 'Final price',
+        '#type' => 'textfield', '#size' => 10,
+        '#default_value' => $value,
+        '#delta' => $delta,
+        '#field_prefix' => '= '. $settings['prefix'],
+        '#field_suffix' => $settings['suffix'],
+        '#disabled' => TRUE,
+    );
+    //
+    $profit = $value - $cost;
+    $label = ($profit >= 0)? 'Profit': 'Lesion';
+
+    $element['profit'] = array(
+        '#markup' => '<label>'. $label .':</label> '. $settings['prefix'] . '<var>'. abs($profit) .'</var>' . $settings['suffix'],
+        '#prefix' => '<div class="m8price-profit">',
+        '#suffix' => '</div>',
+    );
+
+    $element['#theme'] = array('m8price_field');
+    return $element;
+}
+
+
+/**
+ * Validate the field settings form.
+ *//*
+function m8price_field_settings_form_validate($element, &$form_state, $complete_form) {
+
+}*/
+
+
+/**
+ * Implements hook_field_load().
+ *//*
+function m8price_field_load($entity_type, $entities, $field, $instances, $langcode, &$items, $age) {
+
+}
+*/
+/**
+ * Implements hook_field_validate().
+ */
+function m8price_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &$errors) {
+    $settings = $instance['settings'];
+
+    foreach ($items as $delta => $item) {
+        // коррекция десятичного знака
+        $item['cost'] = str_replace(',', '.', $item['cost']); 
+        $item['added'] = str_replace(',', '.', $item['added']);
+        // шаблон проверки формата и размера цены
+        $pattern = '/^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/';
+        if ($item['cost'] && !preg_match($pattern, $item['cost'])){
+            form_set_error($field['field_name'] .']['. $langcode .']['. $delta .'][cost', 'Incorrect value. Format to be used is a number with two decimal digits.');
+        }
+        if ($item['added'] && !preg_match($pattern, $item['added'])){
+            form_set_error($field['field_name'] .']['. $langcode .']['. $delta .'][added', 'Incorrect value. Format to be used is a number with two decimal digits.');
+        }
+        $percent = (int)$item['percent'];
+        if ($item['percent'] !== (string)$percent || $percent < 0 || $percent > 100){
+            form_set_error($field['field_name'] .']['. $langcode .']['. $delta .'][percent', 'The Percentage should be ceil number from 0 to 100.');
+        }
+    }
+
+}
+
+
+/**
+ * Implements hook_field_presave().
+ */
+// перед сохранением подправляем десятичный знак при необходимости
+function m8price_field_presave($entity_type, $entity, $field, $instance, $langcode, &$items) {
+    $settings = $instance['settings'];
+    foreach ($items as $delta => $item) {
+        $items[$delta]['cost'] = round(str_replace(',', '.', $item['cost']) * 100) / 100;
+        $items[$delta]['added'] = round(str_replace(',', '.', $item['added']) * 100) / 100;
+        $items[$delta]['percent'] = (int)$item['percent'];
+        $items[$delta]['original'] = $items[$delta]['cost'] + $items[$delta]['added'];
+        $items[$delta]['discount'] = round($items[$delta]['percent'] * $items[$delta]['original'] / 100, 2);
+        $items[$delta]['value'] = $items[$delta]['original'] - $items[$delta]['discount'];
+    }
+}
+
+/**
+ * Implements hook_field_prepare_view().
+ */
+function m8price_field_prepare_view($entity_type, $entities, $field, $instances, $langcode, &$items) {
+/*
+    foreach ($entities as $id => $entity) {
+        foreach ($items[$id] as $delta => $item) {
+            $items[$id][$delta]['term'] = $terms[$item['tid']];
+        }
+    }
+*/
+}
+
+
+
+
+/**
+ * Implement hook_field_is_empty().
+ */
+function m8price_field_is_empty($item, $field) {
+    return $item['cost'] == 0;
+}
+
+
+
+
+/**
+ * Implementation of hook_field_formatter_info().
+ */
+function m8price_field_formatter_info() {
+    return array(
+        'm8price_default' => array(
+            'label' => 'Default',
+            'field types' => array('m8price_field'),
+            'multiple values' => FIELD_BEHAVIOR_DEFAULT,
+            'settings' => array(
+                'thousand_separator' => ' ',
+                'decimal_separator' => '.',
+                'scale' => 2,
+                'parts' => array('original', 'value'),
+            ),
+        ),
+        'm8price_separated' => array(
+            'label' => 'Separated',
+            'field types' => array('m8price_field'),
+            'multiple values' => FIELD_BEHAVIOR_DEFAULT,
+        ),
+    );
+}
+
+
+function m8price_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state) {
+    $display = $instance['display'][$view_mode];
+    $settings = $display['settings'];
+    $element = array();  
+    if ($display['type'] == 'm8price_default') {
+        $element['thousand_separator'] = array(
+            '#type' => 'select',
+            '#title' => t('Thousand marker'),
+            '#options' => array(
+                ''  => t('<none>'),
+                '.' => t('Decimal point'),
+                ',' => t('Comma'),
+                ' ' => t('Space'),
+            ),
+            '#default_value' => $settings['thousand_separator'],
+        );
+        $element['decimal_separator'] = array(
+            '#type' => 'select',
+            '#title' => t('Decimal marker'),
+            '#options' => array('.' => t('Decimal point'), ',' => t('Comma')),
+            '#default_value' => $settings['decimal_separator'],
+        );
+        $element['scale'] = array(
+            '#type' => 'select',
+            '#title' => t('Scale'),
+            '#options' => array(0, 2),
+            '#default_value' => $settings['scale'],
+            '#description' => t('The number of digits to the right of the decimal.'),
+        );
+        $element['parts'] = array(
+            '#type' => 'checkboxes',
+            '#title' => t('Elements'),
+            '#options' => array(
+                'cost' => 'Cost value',
+                'added' => 'Added value',
+                'original' => 'Original price',
+                'percent' => 'Percent',
+                'discount' => 'Discount',
+                'value' => 'Final price',
+            ),
+            '#default_value' => $settings['parts'],
+            '#description' => '',
+        );
+    }
+    return $element;
+}
+
+
+function m8price_field_formatter_settings_summary($field, $instance, $view_mode) {
+    $display = $instance['display'][$view_mode];
+    $settings = $display['settings'];
+
+    $summary = array();
+    if ($display['type'] == 'm8price_default') {
+        $str = $instance['settings']['prefix'];
+        $str.= number_format(1234.12, $settings['scale'], $settings['decimal_separator'], $settings['thousand_separator']);
+        $str.= $instance['settings']['suffix'];
+        $summary[] = $str;
+        $summary[] = join(', ', array_filter($settings['parts']));
+    }
+
+    return implode('<br />', $summary);
+}
+/**
+ * Implements hook_field_formatter_view().
+ */
+function m8price_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+
+    $elements = array();
+        foreach ($items as $delta => $item) {
+            $elements[$delta] = array(
+                '#markup' => theme('m8price_formatter_'. $display['type'], array('element' => $item, 'field' => $instance)),
+        );
+    }
+    return $elements;
+}
+
+
+
+// элементы поля выводим разными полями для удобного расположения в контенте
+function m8price_field_extra_fields() {
+/*  пока не трубется
+    $extra = array();
+    $fields_info = field_info_instances();
+    $m8price_fields = field_read_fields(array('type' => 'm8price_field'));
+
+    foreach ($m8price_fields as $field_name => $m8price_field) {
+        $field_info = field_info_field($field_name); 
+
+        foreach ($field_info['bundles'] as $entity_type => $bundles) {
+
+            foreach ($bundles as $bundle) {
+                if (isset($extra[$entity_type][$bundle]['display'])) continue;
+
+                $field_label = $fields_info[$entity_type][$bundle][$field_name]['label'];
+                foreach($field_info['columns'] as $column => $info){
+                    $extra[$entity_type][$bundle]['display'][$field_name . '_' . $column] = array(
+                        'label' => $field_label .': '. $column,
+                        'weight' => 100,
+                        'type' => 'hidden',
+                    );
+                }
+            }
+        }
+    }
+  return $extra;
+*/
+}
+
+
+
+/**
+ * Implements hook_theme().
+ */
+function m8price_theme() {
+    return array(
+        'm8price_formatter_m8price_default' => array(
+            'variables' => array('element' => NULL),
+        ),
+        'm8price_formatter_m8price_separated' => array(
+            'variables' => array('element' => NULL),
+        ),
+        'm8price_field' => array(
+            'render element' => 'element',
+        ),
+    );
+}
+
+
+// вид поля в настройках  и в контенте
+function theme_m8price_field($vars) {
+    drupal_add_css(drupal_get_path('module', 'm8price') .'/m8price.css');
+    $element = $vars['element'];
+    $output = '<div class="field-type-m8price-item">';
+    $output.= drupal_render($element['cost']);
+    $output.= drupal_render($element['added']);
+    $output.= drupal_render($element['original']);
+    $output.= '<br>';
+    $output.= drupal_render($element['percent']);
+    $output.= drupal_render($element['discount']);
+    $output.= drupal_render($element['value']);
+    $output.= '</div>';
+    $output.= drupal_render($element['profit']);
+    return $output;
+}
+
+// дефолтный вид поля в материале
+function theme_m8price_formatter_m8price_default($vars) {
+    $f_settings = $vars['field']['settings'];
+    $settings = $vars['field']['display']['default']['settings'];
+
+    $cost = number_format($vars['element']['cost'], $settings['scale'], $settings['decimal_separator'], $settings['thousand_separator']) ;
+    $added = number_format($vars['element']['added'], $settings['scale'], $settings['decimal_separator'], $settings['thousand_separator']) ;
+    $original = number_format($vars['element']['original'], $settings['scale'], $settings['decimal_separator'], $settings['thousand_separator']) ;
+    $discount = number_format($vars['element']['discount'], $settings['scale'], $settings['decimal_separator'], $settings['thousand_separator']) ;
+    $value = number_format($vars['element']['value'], $settings['scale'], $settings['decimal_separator'], $settings['thousand_separator']);
+
+    $output = '';
+    if (in_array('value', $settings['parts'])){
+        $output.= '<strong class="m8price-field-value">';
+        $output.= $f_settings['prefix'] . $value . $f_settings['suffix'];
+        $output.= '</strong> ';
+    }
+    if ($vars['element']['percent']){
+        if ($settings['parts']['percent']){
+            $output.= '<span class="m8price-field-discount">';
+            $output.= $vars['element']['percent'] .'% off';
+            $output.= '</span>';
+        }
+        $output.= '<br/>';
+        if ($settings['parts']['original']){
+            $output.= '<del class="m8price-field-original">';
+            $output.= $f_settings['prefix'] . $original . $f_settings['suffix'];
+            $output.= '</del> ';
+        }
+        if ($settings['parts']['discount']){
+            $output.= '<em class="m8price-field-save">';
+            $output.= 'save '. $f_settings['prefix'] . $discount . $f_settings['suffix'];
+            $output.= '</em>';
+        }
+    }
+    if ($settings['parts']['cost']){
+        $output.= '<div class="m8price-field-cost">';
+        $output.= 'Cost: '. $f_settings['prefix'] . $cost . $f_settings['suffix'];
+        $output.= '</div>';
+    }    
+    if ($settings['parts']['added']){
+        $output.= '<div class="m8price-field-added">';
+        $output.= 'Added: '. $f_settings['prefix'] . $added . $f_settings['suffix'];
+        $output.= '</div>';
+    }
+ 
+    return $output;
+}
+
+
+// заглушка на будущее
+function theme_m8price_formatter_m8price_separated($vars) {
+    $settings = $vars['field']['settings'];
+    return $settings['prefix'] . $vars['element']['value'] . $settings['suffix'];
+}
+
+
+
+
+
+
+/**
+ * Implements hook_views_api().
+ */
+function m8price_views_api() {
+    return array(
+        'api' => 2,
+        'path' => drupal_get_path('module', 'm8price') .'/views',
+    );
+}
